@@ -1,0 +1,177 @@
+import json 
+import os 
+from datetime import datetime 
+from collections import defaultdict 
+DATA_FILE = "expenses.json" 
+def load_expenses(): 
+ """Load expenses from JSON file.""" 
+ if not os.path.exists(DATA_FILE): 
+ return [] 
+ try: 
+ with open(DATA_FILE, "r", encoding="utf-8") as f:  return json.load(f) 
+ except (json.JSONDecodeError, FileNotFoundError):  return [] 
+def save_expenses(expenses): 
+ """Save expenses to JSON file.""" 
+ with open(DATA_FILE, "w", encoding="utf-8") as f:
+ json.dump(expenses, f, indent=4) 
+def get_next_id(expenses): 
+ if not expenses: 
+ return 1 
+ return max(exp["id"] for exp in expenses) + 1 
+def add_expense(expenses): 
+ print("\n--- Add Expense ---") 
+ while True: 
+ try: 
+ amount = float(input("Enter amount: ")) 
+ break 
+ except ValueError: 
+ print("Invalid amount. Please enter a number.") 
+ category = input("Enter category (e.g., Food, Transport): ").strip() or "Misc" 
+ date_choice = input("Use today's date? (Y/N): ").strip().lower()  if date_choice == "n": 
+ date_str = input("Enter date (YYYY-MM-DD): ").strip() 
+ try: 
+ # Validate date format 
+ datetime.strptime(date_str, "%Y-%m-%d") 
+ except ValueError: 
+ print("Invalid date format. Using today's date instead.")  date_str = datetime.today().strftime("%Y-%m-%d") 
+ else: 
+ date_str = datetime.today().strftime("%Y-%m-%d")
+ note = input("Optional note/description: ").strip() 
+ expense = { 
+ "id": get_next_id(expenses), 
+ "amount": amount, 
+ "category": category, 
+ "date": date_str, 
+ "note": note, 
+ } 
+ expenses.append(expense) 
+ save_expenses(expenses) 
+ print("Expense added successfully!") 
+def summary_by_category(expenses): 
+ if not expenses: 
+ print("\nNo expenses to summarize.") 
+ return 
+ totals = defaultdict(float) 
+ for exp in expenses: 
+ totals[exp["category"]] += exp["amount"] 
+ print("\n--- Total Spending by Category ---") 
+ for cat, total in totals.items(): 
+ print(f"{cat}: {total:.2f}") 
+ category = input("\nEnter category to view total (or leave blank to skip): ").strip()  if category: 
+ print(f"Total for {category}: {totals.get(category, 0.0):.2f}")
+def total_spending(expenses): 
+ if not expenses: 
+ print("\nNo expenses to summarize.") 
+ return 
+ total = sum(exp["amount"] for exp in expenses)  print(f"\n--- Total Overall Spending ---\nTotal: {total:.2f}") 
+def spending_over_time(expenses): 
+ if not expenses: 
+ print("\nNo expenses to summarize.") 
+ return 
+ print("\n1. Daily summary") 
+ print("2. Monthly summary") 
+ choice = input("Choose option: ").strip() 
+ summaries = defaultdict(float) 
+ if choice == "1": 
+ # Group by exact date 
+ for exp in expenses: 
+ summaries[exp["date"]] += exp["amount"]  print("\n--- Daily Spending Summary ---")  else: 
+ # Group by month (YYYY-MM) 
+ for exp in expenses: 
+ try: 
+ d = datetime.strptime(exp["date"], "%Y-%m-%d")
+ key = d.strftime("%Y-%m") 
+ except ValueError: 
+ key = "Unknown" 
+ summaries[key] += exp["amount"] 
+ print("\n--- Monthly Spending Summary ---") 
+ for k in sorted(summaries.keys()): 
+ print(f"{k}: {summaries[k]:.2f}") 
+def list_expenses(expenses): 
+ if not expenses: 
+ print("\nNo expenses recorded.") 
+ return 
+ print("\n--- All Expenses ---") 
+ for exp in expenses: 
+ print( 
+ f"ID: {exp['id']} | Date: {exp['date']} | " 
+ f"Category: {exp['category']} | Amount: {exp['amount']:.2f} | Note: {exp['note']}"  ) 
+def delete_expense(expenses): 
+ list_expenses(expenses) 
+ if not expenses: 
+ return 
+ try: 
+ exp_id = int(input("\nEnter ID of expense to delete: ")) 
+ except ValueError:
+ print("Invalid ID.") 
+ return 
+ for exp in expenses: 
+ if exp["id"] == exp_id: 
+ expenses.remove(exp) 
+ save_expenses(expenses) 
+ print("Expense deleted.") 
+ return 
+ print("Expense ID not found.") 
+def edit_expense(expenses): 
+ list_expenses(expenses) 
+ if not expenses: 
+ return 
+ try: 
+ exp_id = int(input("\nEnter ID of expense to edit: "))  except ValueError: 
+ print("Invalid ID.") 
+ return 
+ for exp in expenses: 
+ if exp["id"] == exp_id: 
+ print("Leave field empty to keep current value.")  new_amount = input(f"Amount ({exp['amount']}): ").strip()  if new_amount: 
+ try: 
+ exp["amount"] = float(new_amount)
+ except ValueError: 
+ print("Invalid amount, keeping old value.") 
+ new_cat = input(f"Category ({exp['category']}): ").strip()  if new_cat: 
+ exp["category"] = new_cat 
+ new_date = input(f"Date ({exp['date']}) [YYYY-MM-DD]: ").strip()  if new_date: 
+ try: 
+ datetime.strptime(new_date, "%Y-%m-%d")  exp["date"] = new_date 
+ except ValueError: 
+ print("Invalid date, keeping old value.") 
+ new_note = input(f"Note ({exp['note']}): ").strip()  if new_note: 
+ exp["note"] = new_note 
+ save_expenses(expenses) 
+ print("Expense updated.") 
+ return 
+ print("Expense ID not found.") 
+def show_menu(): 
+ print("\n====== Personal Expense Tracker ======")  print("1. Add expense") 
+ print("2. View summary by category") 
+ print("3. View total overall spending")
+ print("4. View spending over time (daily/monthly)")  print("5. List all expenses") 
+ print("6. Edit an expense (Bonus)") 
+ print("7. Delete an expense (Bonus)") 
+ print("8. Exit") 
+def main(): 
+ expenses = load_expenses() 
+ print("Loaded", len(expenses), "expense(s).") 
+ while True: 
+ show_menu() 
+ choice = input("Enter your choice: ").strip() 
+ if choice == "1": 
+ add_expense(expenses) 
+ elif choice == "2": 
+ summary_by_category(expenses) 
+ elif choice == "3": 
+ total_spending(expenses) 
+ elif choice == "4": 
+ spending_over_time(expenses) 
+ elif choice == "5": 
+ list_expenses(expenses) 
+ elif choice == "6": 
+ edit_expense(expenses) 
+ elif choice == "7": 
+ delete_expense(expenses) 
+ elif choice == "8": 
+ print("Exiting... Goodbye!")
+ break 
+ else: 
+ print("Invalid choice. Please try again.") 
+if __name__ == "__main__": 
+ main() 
